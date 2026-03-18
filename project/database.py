@@ -5,6 +5,7 @@ from contextlib import contextmanager
 from typing import Iterator
 
 from project.config import settings
+from project.errors import AppError
 from project.models import SearchUserMatch, UserCreate, UserRecord
 
 
@@ -50,11 +51,13 @@ class Database:
                 connection.commit()
                 user_id = int(cursor.lastrowid)
         except sqlite3.IntegrityError as exc:
-            raise ValueError("A user with this email already exists.") from exc
+            raise AppError("validation_error", "A user with this email already exists.") from exc
+        except sqlite3.Error as exc:
+            raise AppError("storage_error", "Failed to persist the user in SQLite.") from exc
 
         user = self.get_user_by_id(user_id)
         if user is None:
-            raise RuntimeError("Created user could not be read back from storage.")
+            raise AppError("storage_error", "Created user could not be read back from storage.")
         return user
 
     def get_user_by_id(self, user_id: int) -> UserRecord | None:
