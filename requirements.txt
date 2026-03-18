@@ -1,0 +1,5 @@
+fastmcp
+faiss-cpu
+numpy
+pydantic[email]
+

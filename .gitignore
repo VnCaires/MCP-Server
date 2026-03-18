@@ -1,0 +1,17 @@
+.venv/
+venv/
+.tmp/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.db
+*.sqlite
+*.sqlite3
+project/faiss_index/*
+!project/faiss_index/.gitkeep
