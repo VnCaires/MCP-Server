@@ -29,3 +29,10 @@ python -m pip install -r requirements.txt
 
 O servidor MCP sera iniciado a partir de `project/server.py` conforme as proximas issues implementarem as tools obrigatorias.
 
+## Smoke test do banco
+
+Para validar rapidamente a persistencia SQLite:
+
+```powershell
+.\.venv\Scripts\python.exe project\smoke_test.py
+```

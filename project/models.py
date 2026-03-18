@@ -43,6 +43,13 @@ class SearchUserMatch(UserRecord):
     score: float
 
 
+class VectorIndexEntry(BaseModel):
+    """Metadata that links a FAISS vector position to a persisted user."""
+
+    vector_id: int = Field(..., ge=0)
+    user_id: int = Field(..., ge=1)
+
+
 class GetUserRequest(BaseModel):
     """Input contract for the `get_user` MCP tool."""
 
