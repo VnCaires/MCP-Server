@@ -32,6 +32,14 @@ def create_app() -> FastMCP:
         """Persist a user and index its description embedding."""
         return create_user_workflow(name=name, email=email, description=description, dependencies=dependencies)
 
+    @app.tool(
+        name="search_users",
+        description="Search for semantically similar CRM users using the FAISS index.",
+    )
+    def search_users_tool(query: str, top_k: int = 5) -> list[SearchUserMatch]:
+        """Return the users most similar to the provided semantic query."""
+        return search_users_semantic(query=query, top_k=top_k, dependencies=dependencies)
+
     return app
 
 
