@@ -7,6 +7,16 @@ from typing import Iterator
 from project.config import settings
 
 
+USER_TABLE_SCHEMA = """
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    email TEXT NOT NULL UNIQUE,
+    description TEXT NOT NULL
+);
+""".strip()
+
+
 class Database:
     """Thin wrapper around the project SQLite database."""
 
@@ -15,7 +25,15 @@ class Database:
 
     def connect(self) -> sqlite3.Connection:
         """Open a SQLite connection for the configured database path."""
-        return sqlite3.connect(self.database_path)
+        connection = sqlite3.connect(self.database_path)
+        connection.row_factory = sqlite3.Row
+        return connection
+
+    def initialize(self) -> None:
+        """Create the database schema required by the application."""
+        with self.session() as connection:
+            connection.execute(USER_TABLE_SCHEMA)
+            connection.commit()
 
     @contextmanager
     def session(self) -> Iterator[sqlite3.Connection]:
@@ -30,4 +48,3 @@ class Database:
 def get_database() -> Database:
     """Build the default database dependency for the application."""
     return Database()
-

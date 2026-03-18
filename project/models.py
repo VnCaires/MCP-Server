@@ -19,6 +19,16 @@ class UserRecord(UserCreate):
 
     id: int
 
+    @classmethod
+    def from_row(cls, row: dict[str, object]) -> "UserRecord":
+        """Build a user record from a SQLite row-like mapping."""
+        return cls(
+            id=int(row["id"]),
+            name=str(row["name"]),
+            email=str(row["email"]),
+            description=str(row["description"]),
+        )
+
 
 class SearchUsersRequest(BaseModel):
     """Input contract for the `search_users` MCP tool."""

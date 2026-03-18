@@ -20,6 +20,7 @@ def build_dependencies() -> AppDependencies:
 def create_app() -> FastMCP:
     """Return the configured MCP application."""
     dependencies = build_dependencies()
+    dependencies.database.initialize()
     dependencies.vector_store.ensure_storage()
     app = FastMCP("crm-semantic-search")
     return app
