@@ -63,6 +63,74 @@ python -m pip install -r requirements.txt
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
+## Exemplos de uso das tools MCP
+
+### `create_user`
+
+Entrada:
+
+```json
+{
+  "name": "Ana Souza",
+  "email": "ana@example.com",
+  "description": "Cliente interessada em automacao financeira e atendimento premium"
+}
+```
+
+Resposta esperada:
+
+```json
+{
+  "id": 1
+}
+```
+
+### `search_users`
+
+Entrada:
+
+```json
+{
+  "query": "automacao financeira premium",
+  "top_k": 3
+}
+```
+
+Resposta esperada:
+
+```json
+[
+  {
+    "id": 1,
+    "name": "Ana Souza",
+    "email": "ana@example.com",
+    "description": "Cliente interessada em automacao financeira e atendimento premium",
+    "score": 0.91
+  }
+]
+```
+
+### `get_user`
+
+Entrada:
+
+```json
+{
+  "user_id": 1
+}
+```
+
+Resposta esperada:
+
+```json
+{
+  "id": 1,
+  "name": "Ana Souza",
+  "email": "ana@example.com",
+  "description": "Cliente interessada em automacao financeira e atendimento premium"
+}
+```
+
 ## Persistencia local
 
 O projeto usa:
