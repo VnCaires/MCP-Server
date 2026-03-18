@@ -70,6 +70,17 @@ def register_tools(app: FastMCP, dependencies: AppDependencies) -> FastMCP:
         except AppError as exc:
             return build_error_response(exc)
 
+    @app.tool(
+        name="list_users",
+        description="List all CRM users currently stored in SQLite.",
+    )
+    def list_users_tool() -> list[UserRecord] | ErrorResponse:
+        """Return all persisted users ordered by creation ID."""
+        try:
+            return list_users_workflow(dependencies=dependencies)
+        except AppError as exc:
+            return build_error_response(exc)
+
     return app
 
 
@@ -139,6 +150,12 @@ def get_user_workflow(user_id: int, dependencies: AppDependencies | None = None)
     if user is None:
         raise AppError("not_found", f"User with id={user_id} was not found.")
     return user
+
+
+def list_users_workflow(dependencies: AppDependencies | None = None) -> list[UserRecord]:
+    """Return all persisted users ordered by ID."""
+    deps = dependencies or build_dependencies()
+    return deps.database.list_users()
 
 
 def build_error_response(error: AppError) -> ErrorResponse:

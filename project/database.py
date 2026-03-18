@@ -96,6 +96,19 @@ class Database:
         row_map = {int(row["id"]): UserRecord.from_row(dict(row)) for row in rows}
         return [row_map[user_id] for user_id in user_ids if user_id in row_map]
 
+    def list_users(self) -> list[UserRecord]:
+        """Return all stored users ordered by ID."""
+        with self.session() as connection:
+            rows = connection.execute(
+                """
+                SELECT id, name, email, description
+                FROM users
+                ORDER BY id ASC
+                """.strip()
+            ).fetchall()
+
+        return [UserRecord.from_row(dict(row)) for row in rows]
+
     def hydrate_search_matches(self, user_ids: list[int], scores: list[float]) -> list[SearchUserMatch]:
         """Combine stored users and vector scores into search result payloads."""
         users = self.get_users_by_ids(user_ids)
