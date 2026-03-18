@@ -9,6 +9,7 @@ class Settings:
     """Filesystem settings shared across project modules."""
 
     base_dir: Path = field(default_factory=lambda: Path(__file__).resolve().parent)
+    embedding_dimensions: int = 128
     database_path: Path = field(init=False)
     faiss_index_dir: Path = field(init=False)
     faiss_metadata_path: Path = field(init=False)
