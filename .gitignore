@@ -15,3 +15,5 @@ htmlcov/
 *.sqlite3
 project/faiss_index/*
 !project/faiss_index/.gitkeep
+project/smoke_test.py
+project/demo_local.py

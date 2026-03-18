@@ -36,3 +36,11 @@ Para validar rapidamente a persistencia SQLite:
 ```powershell
 .\.venv\Scripts\python.exe project\smoke_test.py
 ```
+
+## Demo local
+
+Para ver o fluxo atual na pratica com criacao de usuarios e busca semantica:
+
+```powershell
+.\.venv\Scripts\python.exe project\demo_local.py
+```
