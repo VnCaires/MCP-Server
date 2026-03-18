@@ -4,7 +4,7 @@ from fastmcp import FastMCP
 
 from project.database import get_database
 from project.embeddings import get_embedding_service
-from project.models import AppDependencies, SearchUserMatch
+from project.models import AppDependencies, CreateUserResponse, SearchUserMatch, UserCreate
 from project.vector_store import get_vector_store
 
 
@@ -23,7 +23,31 @@ def create_app() -> FastMCP:
     dependencies.database.initialize()
     dependencies.vector_store.ensure_storage()
     app = FastMCP("crm-semantic-search")
+
+    @app.tool(
+        name="create_user",
+        description="Create a CRM user, persist it in SQLite, generate an embedding, and index it in FAISS.",
+    )
+    def create_user_tool(name: str, email: str, description: str) -> CreateUserResponse:
+        """Persist a user and index its description embedding."""
+        return create_user_workflow(name=name, email=email, description=description, dependencies=dependencies)
+
     return app
+
+
+def create_user_workflow(
+    name: str,
+    email: str,
+    description: str,
+    dependencies: AppDependencies | None = None,
+) -> CreateUserResponse:
+    """Execute the full create-user workflow used by the MCP tool."""
+    deps = dependencies or build_dependencies()
+    payload = UserCreate(name=name, email=email, description=description)
+    created_user = deps.database.create_user(payload)
+    description_embedding = deps.embedding_service.embed_description(created_user.description)
+    deps.vector_store.add_vector(created_user.id, description_embedding)
+    return CreateUserResponse(id=created_user.id)
 
 
 def search_users_semantic(
