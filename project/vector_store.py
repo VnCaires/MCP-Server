@@ -15,8 +15,8 @@ class VectorStore:
 
     def __init__(self, index_dir: Path | None = None) -> None:
         self.index_dir = index_dir or settings.faiss_index_dir
-        self.metadata_path = settings.faiss_metadata_path
-        self.index_path = settings.faiss_index_path
+        self.metadata_path = self.index_dir / "metadata.json"
+        self.index_path = self.index_dir / "users.index"
         self.dimensions = settings.embedding_dimensions
 
     def ensure_storage(self) -> Path:
