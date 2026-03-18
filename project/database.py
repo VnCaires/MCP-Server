@@ -5,7 +5,7 @@ from contextlib import contextmanager
 from typing import Iterator
 
 from project.config import settings
-from project.models import UserCreate, UserRecord
+from project.models import SearchUserMatch, UserCreate, UserRecord
 
 
 USER_TABLE_SCHEMA = """
@@ -73,6 +73,47 @@ class Database:
             return None
 
         return UserRecord.from_row(dict(row))
+
+    def get_users_by_ids(self, user_ids: list[int]) -> list[UserRecord]:
+        """Return stored users preserving the input order of user IDs."""
+        if not user_ids:
+            return []
+
+        placeholders = ", ".join("?" for _ in user_ids)
+        with self.session() as connection:
+            rows = connection.execute(
+                f"""
+                SELECT id, name, email, description
+                FROM users
+                WHERE id IN ({placeholders})
+                """.strip(),
+                tuple(user_ids),
+            ).fetchall()
+
+        row_map = {int(row["id"]): UserRecord.from_row(dict(row)) for row in rows}
+        return [row_map[user_id] for user_id in user_ids if user_id in row_map]
+
+    def hydrate_search_matches(self, user_ids: list[int], scores: list[float]) -> list[SearchUserMatch]:
+        """Combine stored users and vector scores into search result payloads."""
+        users = self.get_users_by_ids(user_ids)
+        user_map = {user.id: user for user in users}
+
+        matches: list[SearchUserMatch] = []
+        for user_id, score in zip(user_ids, scores):
+            user = user_map.get(user_id)
+            if user is None:
+                continue
+            matches.append(
+                SearchUserMatch(
+                    id=user.id,
+                    name=user.name,
+                    email=user.email,
+                    description=user.description,
+                    score=score,
+                )
+            )
+
+        return matches
 
     @contextmanager
     def session(self) -> Iterator[sqlite3.Connection]:
