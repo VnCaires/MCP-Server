@@ -1,18 +1,55 @@
-"""Application data models."""
+"""Application data models and MCP tool contracts."""
 
 from dataclasses import dataclass
+from typing import Literal
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 
 class UserCreate(BaseModel):
-    name: str
+    """Payload used to create a user."""
+
+    name: str = Field(..., min_length=1)
     email: EmailStr
-    description: str
+    description: str = Field(..., min_length=1)
 
 
 class UserRecord(UserCreate):
+    """User representation persisted in storage."""
+
     id: int
+
+
+class SearchUsersRequest(BaseModel):
+    """Input contract for the `search_users` MCP tool."""
+
+    query: str = Field(..., min_length=1)
+    top_k: int = Field(default=5, ge=1)
+
+
+class SearchUserMatch(UserRecord):
+    """Single semantic search result item."""
+
+    score: float
+
+
+class GetUserRequest(BaseModel):
+    """Input contract for the `get_user` MCP tool."""
+
+    user_id: int = Field(..., ge=1)
+
+
+class CreateUserResponse(BaseModel):
+    """Output contract for the `create_user` MCP tool."""
+
+    id: int
+
+
+class ErrorResponse(BaseModel):
+    """Shared error response shape for MCP tool failures."""
+
+    code: Literal["not_found", "validation_error", "storage_error", "embedding_error"]
+    message: str
 
 
 @dataclass(frozen=True)
@@ -22,4 +59,3 @@ class AppDependencies:
     database: object
     embedding_service: object
     vector_store: object
-
