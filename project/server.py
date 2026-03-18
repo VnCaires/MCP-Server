@@ -4,7 +4,7 @@ from fastmcp import FastMCP
 
 from project.database import get_database
 from project.embeddings import get_embedding_service
-from project.models import AppDependencies, CreateUserResponse, SearchUserMatch, UserCreate
+from project.models import AppDependencies, CreateUserResponse, SearchUserMatch, UserCreate, UserRecord
 from project.vector_store import get_vector_store
 
 
@@ -40,6 +40,14 @@ def create_app() -> FastMCP:
         """Return the users most similar to the provided semantic query."""
         return search_users_semantic(query=query, top_k=top_k, dependencies=dependencies)
 
+    @app.tool(
+        name="get_user",
+        description="Fetch a CRM user by ID from SQLite storage.",
+    )
+    def get_user_tool(user_id: int) -> UserRecord:
+        """Return a persisted user by its identifier."""
+        return get_user_workflow(user_id=user_id, dependencies=dependencies)
+
     return app
 
 
@@ -70,6 +78,15 @@ def search_users_semantic(
     user_ids = deps.vector_store.get_user_ids_for_vectors(vector_ids)
     aligned_scores = scores[: len(user_ids)]
     return deps.database.hydrate_search_matches(user_ids, aligned_scores)
+
+
+def get_user_workflow(user_id: int, dependencies: AppDependencies | None = None) -> UserRecord:
+    """Return one persisted user or raise a consistent not-found error."""
+    deps = dependencies or build_dependencies()
+    user = deps.database.get_user_by_id(user_id)
+    if user is None:
+        raise ValueError(f"User with id={user_id} was not found.")
+    return user
 
 
 if __name__ == "__main__":
