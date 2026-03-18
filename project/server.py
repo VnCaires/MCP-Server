@@ -17,12 +17,14 @@ def build_dependencies() -> AppDependencies:
     )
 
 
-def create_app() -> FastMCP:
-    """Return the configured MCP application."""
-    dependencies = build_dependencies()
+def initialize_runtime(dependencies: AppDependencies) -> None:
+    """Initialize local runtime resources required by the MCP server."""
     dependencies.database.initialize()
     dependencies.vector_store.ensure_storage()
-    app = FastMCP("crm-semantic-search")
+
+
+def register_tools(app: FastMCP, dependencies: AppDependencies) -> FastMCP:
+    """Register MCP tools on the application instance."""
 
     @app.tool(
         name="create_user",
@@ -49,6 +51,14 @@ def create_app() -> FastMCP:
         return get_user_workflow(user_id=user_id, dependencies=dependencies)
 
     return app
+
+
+def create_app(dependencies: AppDependencies | None = None) -> FastMCP:
+    """Return the configured MCP application."""
+    deps = dependencies or build_dependencies()
+    initialize_runtime(deps)
+    app = FastMCP("crm-semantic-search")
+    return register_tools(app, deps)
 
 
 def create_user_workflow(
@@ -89,5 +99,10 @@ def get_user_workflow(user_id: int, dependencies: AppDependencies | None = None)
     return user
 
 
-if __name__ == "__main__":
+def run() -> None:
+    """Start the MCP server runtime."""
     create_app().run()
+
+
+if __name__ == "__main__":
+    run()
