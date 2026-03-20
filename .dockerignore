@@ -1,0 +1,11 @@
+.git
+.gitignore
+.venv
+.tmp
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+project/crm.sqlite3
+project/faiss_index/users.index
+project/faiss_index/metadata.json

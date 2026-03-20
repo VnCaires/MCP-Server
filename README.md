@@ -57,6 +57,24 @@ python -m pip install -r requirements.txt
 .\.venv\Scripts\python.exe project\server.py
 ```
 
+## Executar com Docker
+
+### 1. Build da imagem
+
+```powershell
+docker build -t mcp-server .
+```
+
+### 2. Rodar o servidor no container
+
+```powershell
+docker run --rm mcp-server
+```
+
+Observacao:
+- O banco SQLite e os arquivos do indice FAISS serao criados dentro do container na primeira execucao
+- Se quiser preservar esses arquivos entre execucoes, basta montar um volume depois
+
 ## Executar a suite de testes
 
 ```powershell
