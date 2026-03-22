@@ -16,6 +16,7 @@ O servidor ja possui as tools obrigatorias do case:
 
 Diferencial opcional ja implementado:
 - `list_users`
+- `Dockerfile`
 
 ## Estrutura
 
@@ -33,9 +34,8 @@ project/
 ## Pre-requisitos
 
 - Python 3.13+
-- Windows PowerShell ou terminal compativel
 
-## Instalacao
+## instalar e executar sem Docker
 
 ### 1. Criar e ativar a venv
 
@@ -57,7 +57,7 @@ python -m pip install -r requirements.txt
 .\.venv\Scripts\python.exe project\server.py
 ```
 
-## Executar com Docker
+## Executar com Docker (caso tenha instalado na máquina)
 
 ### 1. Build da imagem
 
@@ -77,25 +77,35 @@ Observacao:
 
 ## Executar a suite de testes
 
+### Sem o Docker
 ```powershell
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
+### Com o Docker
+```powershell
+docker run --rm mcp-server python -m unittest discover -s tests -v
+```
+
 ## Exemplos de uso das tools MCP
 
+A seguir estão exemplos simples de como interagir com as principais ferramentas do servidor MCP.
+
 ### `create_user`
+Cria um novo usuário com informações básicas e uma descrição contextual.
 
-Entrada:
+**Entrada:**
 
+````markdown
 ```json
 {
   "name": "Ana Souza",
   "email": "ana@example.com",
   "description": "Cliente interessada em automacao financeira e atendimento premium"
 }
-```
+````
 
-Resposta esperada:
+**Resposta esperada:**
 
 ```json
 {
@@ -103,9 +113,13 @@ Resposta esperada:
 }
 ```
 
+---
+
 ### `search_users`
 
-Entrada:
+Realiza uma busca semantica por usuarios com base em uma consulta textual.
+
+**Entrada:**
 
 ```json
 {
@@ -114,7 +128,7 @@ Entrada:
 }
 ```
 
-Resposta esperada:
+**Resposta esperada:**
 
 ```json
 [
@@ -128,9 +142,13 @@ Resposta esperada:
 ]
 ```
 
+---
+
 ### `get_user`
 
-Entrada:
+Recupera os dados completos de um usuario a partir do seu ID.
+
+**Entrada:**
 
 ```json
 {
@@ -138,7 +156,7 @@ Entrada:
 }
 ```
 
-Resposta esperada:
+**Resposta esperada:**
 
 ```json
 {
@@ -148,6 +166,9 @@ Resposta esperada:
   "description": "Cliente interessada em automacao financeira e atendimento premium"
 }
 ```
+
+
+
 
 ## Persistencia local
 
@@ -172,3 +193,5 @@ As tools retornam erros consistentes no formato:
 - Os embeddings atuais sao locais e deterministicos, pensados para desenvolvimento e demonstracao
 - A arquitetura foi mantida modular para facilitar troca futura do provedor de embeddings ou da estrategia vetorial
 - O banco SQLite e os arquivos do indice FAISS sao criados automaticamente na primeira execucao
+
+
