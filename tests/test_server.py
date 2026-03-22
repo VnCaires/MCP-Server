@@ -92,17 +92,17 @@ class MCPServerFlowTests(unittest.IsolatedAsyncioTestCase):
         create_user.fn(
             name="Carla",
             email="carla@test.com",
-            description="cliente premium com interesse em automacao financeira",
+            description="responsavel por operacoes financeiras e automacao de cobranca",
         )
         create_user.fn(
             name="Diego",
             email="diego@test.com",
-            description="cliente focado em suporte industrial",
+            description="coordena suporte tecnico industrial e atendimento de campo",
         )
         create_user.fn(
             name="Eva",
             email="eva@test.com",
-            description="cliente premium com automacao de processos comerciais",
+            description="lidera automacao de processos comerciais e qualificacao de leads",
         )
 
         results = search_users.fn(query="automacao financeira premium", top_k=3)
@@ -112,6 +112,27 @@ class MCPServerFlowTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsInstance(results[0], SearchUserMatch)
         self.assertEqual(results[0].name, "Carla")
         self.assertGreaterEqual(results[0].score, results[1].score)
+
+    async def test_search_users_tool_downranks_generic_cliente_term(self) -> None:
+        create_user = await self.app.get_tool("create_user")
+        search_users = await self.app.get_tool("search_users")
+
+        create_user.fn(
+            name="Ana",
+            email="ana@test.com",
+            description="especialista em analise de dados financeiros e indicadores de desempenho",
+        )
+        create_user.fn(
+            name="Bruno",
+            email="bruno@test.com",
+            description="cliente com foco em operacao interna e rotinas administrativas",
+        )
+
+        results = search_users.fn(query="Cliente com capacidade analítica", top_k=2)
+
+        self.assertIsInstance(results, list)
+        self.assertEqual(results[0].name, "Ana")
+        self.assertGreater(results[0].score, results[1].score)
 
     async def test_search_users_tool_validates_top_k(self) -> None:
         search_users = await self.app.get_tool("search_users")
