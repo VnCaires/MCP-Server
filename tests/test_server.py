@@ -1,5 +1,4 @@
 """Automated tests for the main MCP server flows."""
-
 from pathlib import Path
 import shutil
 import unittest
@@ -8,7 +7,7 @@ from uuid import uuid4
 from project.database import Database
 from project.embeddings import EmbeddingService
 from project.models import AppDependencies, CreateUserResponse, ErrorResponse, SearchUserMatch, UserRecord
-from project.server import create_app
+from project.server import create_app, logger
 from project.vector_store import VectorStore
 
 
@@ -141,6 +140,42 @@ class MCPServerFlowTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertIsInstance(result, ErrorResponse)
         self.assertEqual(result.code, "validation_error")
+
+    async def test_create_user_tool_emits_structured_success_logs(self) -> None:
+        create_user = await self.app.get_tool("create_user")
+
+        with self.assertLogs(logger, level="INFO") as captured:
+            result = create_user.fn(
+                name="Lucia",
+                email="lucia@test.com",
+                description="lider de operacoes financeiras com foco em automacao",
+            )
+
+        self.assertIsInstance(result, CreateUserResponse)
+        completed_log = next(
+            record
+            for record in captured.records
+            if getattr(record, "event", "") == "tool.invocation.completed"
+        )
+        self.assertEqual(completed_log.context["tool_name"], "create_user")
+        self.assertEqual(completed_log.context["created_user_id"], result.id)
+        self.assertEqual(completed_log.context["email_domain"], "test.com")
+
+    async def test_get_user_tool_emits_structured_failure_logs(self) -> None:
+        get_user = await self.app.get_tool("get_user")
+
+        with self.assertLogs(logger, level="INFO") as captured:
+            result = get_user.fn(user_id=404)
+
+        self.assertIsInstance(result, ErrorResponse)
+        failed_log = next(
+            record
+            for record in captured.records
+            if getattr(record, "event", "") == "tool.invocation.failed"
+        )
+        self.assertEqual(failed_log.context["tool_name"], "get_user")
+        self.assertEqual(failed_log.context["user_id"], 404)
+        self.assertEqual(failed_log.context["error_code"], "not_found")
 
 
 if __name__ == "__main__":
