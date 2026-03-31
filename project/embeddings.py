@@ -1,8 +1,10 @@
 """Embedding provider abstractions."""
 
+from collections import Counter
 from hashlib import blake2b
 from typing import Protocol
 import re
+import unicodedata
 
 import numpy as np
 
@@ -10,6 +12,36 @@ from project.config import settings
 
 
 TOKEN_PATTERN = re.compile(r"\b\w+\b", re.UNICODE)
+STOPWORDS = {
+    "a",
+    "ao",
+    "aos",
+    "as",
+    "com",
+    "como",
+    "da",
+    "das",
+    "de",
+    "do",
+    "dos",
+    "e",
+    "em",
+    "na",
+    "nas",
+    "no",
+    "nos",
+    "o",
+    "os",
+    "para",
+    "por",
+    "sem",
+    "um",
+    "uma",
+    "usuario",
+    "usuarios",
+    "cliente",
+    "clientes",
+}
 
 
 class EmbeddingProvider(Protocol):
@@ -35,16 +67,18 @@ class EmbeddingService:
 
     def embed_text(self, text: str) -> list[float]:
         """Convert text into a normalized deterministic vector."""
-        normalized_text = text.strip().lower()
+        normalized_text = self._normalize_text(text)
         if not normalized_text:
             raise ValueError("Text for embedding must not be empty.")
 
         vector = np.zeros(self.dimensions, dtype=np.float32)
-        tokens = TOKEN_PATTERN.findall(normalized_text) or [normalized_text]
+        weighted_terms = self._extract_weighted_terms(normalized_text)
+        if not weighted_terms:
+            raise ValueError("Text could not be converted into a valid embedding.")
 
-        for token in tokens:
-            token_vector = self._token_to_vector(token)
-            vector += token_vector
+        for term, weight in weighted_terms.items():
+            token_vector = self._token_to_vector(term)
+            vector += token_vector * weight
 
         norm = np.linalg.norm(vector)
         if norm == 0:
@@ -52,6 +86,45 @@ class EmbeddingService:
 
         normalized_vector = vector / norm
         return normalized_vector.astype(np.float32).tolist()
+
+    def _normalize_text(self, text: str) -> str:
+        """Lowercase and strip accents to compare related terms more consistently."""
+        lowered = text.strip().lower()
+        if not lowered:
+            return ""
+
+        normalized = unicodedata.normalize("NFKD", lowered)
+        return "".join(char for char in normalized if not unicodedata.combining(char))
+
+    def _extract_weighted_terms(self, normalized_text: str) -> Counter[str]:
+        """Generate weighted lexical features while downranking generic CRM words."""
+        raw_tokens = TOKEN_PATTERN.findall(normalized_text)
+        tokens = [
+            token
+            for token in raw_tokens
+            if token not in STOPWORDS and not token.isdigit() and len(token) >= 3
+        ]
+        if not tokens and raw_tokens:
+            tokens = [token for token in raw_tokens if not token.isdigit()]
+
+        weighted_terms: Counter[str] = Counter(tokens)
+        for token in tokens:
+            for ngram in self._token_ngrams(token):
+                weighted_terms[ngram] += 0.35
+        return weighted_terms
+
+    def _token_ngrams(self, token: str) -> list[str]:
+        """Add character n-grams so related word forms still land near each other."""
+        if len(token) < 4:
+            return []
+
+        ngrams: list[str] = []
+        for size in (3, 4):
+            if len(token) < size:
+                continue
+            for index in range(len(token) - size + 1):
+                ngrams.append(f"{size}g:{token[index:index + size]}")
+        return ngrams
 
     def _token_to_vector(self, token: str) -> np.ndarray:
         """Project a token into a stable dense vector space."""

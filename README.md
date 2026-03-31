@@ -17,6 +17,8 @@ O servidor ja possui as tools obrigatorias do case:
 Diferencial opcional ja implementado:
 - `list_users`
 - `Dockerfile`
+- logging estruturado
+- testes automatizados
 
 ## Estrutura
 
@@ -185,6 +187,30 @@ As tools retornam erros consistentes no formato:
 {
   "code": "validation_error | not_found | storage_error | embedding_error",
   "message": "..."
+}
+```
+
+## Observabilidade
+
+O servidor agora emite logs estruturados em JSON para os eventos principais:
+- bootstrap e inicializacao do runtime
+- inicio e fim de cada tool MCP
+- falhas com `error_code` e `duration_ms`
+
+Exemplo de log:
+
+```json
+{
+  "level": "INFO",
+  "logger": "project.server",
+  "message": "create_user completed.",
+  "event": "tool.invocation.completed",
+  "context": {
+    "tool_name": "create_user",
+    "duration_ms": 12.418,
+    "email_domain": "example.com",
+    "created_user_id": 1
+  }
 }
 ```
 

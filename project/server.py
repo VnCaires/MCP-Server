@@ -1,11 +1,39 @@
 """MCP server entrypoint."""
 
+import logging
+from pathlib import Path
+import sys
+import time
+from typing import Callable, TypeVar
+import warnings
+
+
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+warnings.filterwarnings(
+    "ignore",
+    message=r"builtin type SwigPyPacked has no __module__ attribute",
+    category=DeprecationWarning,
+)
+warnings.filterwarnings(
+    "ignore",
+    message=r"builtin type SwigPyObject has no __module__ attribute",
+    category=DeprecationWarning,
+)
+warnings.filterwarnings(
+    "ignore",
+    message=r"builtin type swigvarlink has no __module__ attribute",
+    category=DeprecationWarning,
+)
+
 from fastmcp import FastMCP
 from pydantic import ValidationError
 
 from project.database import get_database
 from project.embeddings import get_embedding_service
 from project.errors import AppError
+from project.logging_utils import configure_logging, log_event
 from project.models import (
     AppDependencies,
     CreateUserResponse,
@@ -19,19 +47,28 @@ from project.models import (
 from project.vector_store import get_vector_store
 
 
+logger = configure_logging()
+ToolResult = TypeVar("ToolResult")
+
+
 def build_dependencies() -> AppDependencies:
     """Assemble the services the application will use."""
-    return AppDependencies(
+    log_event(logger, logging.INFO, "dependencies.build.started", "Building application dependencies.")
+    dependencies = AppDependencies(
         database=get_database(),
         embedding_service=get_embedding_service(),
         vector_store=get_vector_store(),
     )
+    log_event(logger, logging.INFO, "dependencies.build.completed", "Application dependencies ready.")
+    return dependencies
 
 
 def initialize_runtime(dependencies: AppDependencies) -> None:
     """Initialize local runtime resources required by the MCP server."""
+    log_event(logger, logging.INFO, "runtime.initialize.started", "Initializing runtime storage.")
     dependencies.database.initialize()
     dependencies.vector_store.ensure_storage()
+    log_event(logger, logging.INFO, "runtime.initialize.completed", "Runtime storage ready.")
 
 
 def register_tools(app: FastMCP, dependencies: AppDependencies) -> FastMCP:
@@ -43,10 +80,13 @@ def register_tools(app: FastMCP, dependencies: AppDependencies) -> FastMCP:
     )
     def create_user_tool(name: str, email: str, description: str) -> CreateUserResponse | ErrorResponse:
         """Persist a user and index its description embedding."""
-        try:
-            return create_user_workflow(name=name, email=email, description=description, dependencies=dependencies)
-        except AppError as exc:
-            return build_error_response(exc)
+        return execute_tool(
+            "create_user",
+            lambda: create_user_workflow(name=name, email=email, description=description, dependencies=dependencies),
+            email_domain=email.split("@")[-1] if "@" in email else "invalid",
+            name_length=len(name),
+            description_length=len(description),
+        )
 
     @app.tool(
         name="search_users",
@@ -54,10 +94,12 @@ def register_tools(app: FastMCP, dependencies: AppDependencies) -> FastMCP:
     )
     def search_users_tool(query: str, top_k: int = 5) -> list[SearchUserMatch] | ErrorResponse:
         """Return the users most similar to the provided semantic query."""
-        try:
-            return search_users_semantic(query=query, top_k=top_k, dependencies=dependencies)
-        except AppError as exc:
-            return build_error_response(exc)
+        return execute_tool(
+            "search_users",
+            lambda: search_users_semantic(query=query, top_k=top_k, dependencies=dependencies),
+            query_length=len(query),
+            top_k=top_k,
+        )
 
     @app.tool(
         name="get_user",
@@ -65,10 +107,11 @@ def register_tools(app: FastMCP, dependencies: AppDependencies) -> FastMCP:
     )
     def get_user_tool(user_id: int) -> UserRecord | ErrorResponse:
         """Return a persisted user by its identifier."""
-        try:
-            return get_user_workflow(user_id=user_id, dependencies=dependencies)
-        except AppError as exc:
-            return build_error_response(exc)
+        return execute_tool(
+            "get_user",
+            lambda: get_user_workflow(user_id=user_id, dependencies=dependencies),
+            user_id=user_id,
+        )
 
     @app.tool(
         name="list_users",
@@ -76,10 +119,7 @@ def register_tools(app: FastMCP, dependencies: AppDependencies) -> FastMCP:
     )
     def list_users_tool() -> list[UserRecord] | ErrorResponse:
         """Return all persisted users ordered by creation ID."""
-        try:
-            return list_users_workflow(dependencies=dependencies)
-        except AppError as exc:
-            return build_error_response(exc)
+        return execute_tool("list_users", lambda: list_users_workflow(dependencies=dependencies))
 
     return app
 
@@ -89,7 +129,51 @@ def create_app(dependencies: AppDependencies | None = None) -> FastMCP:
     deps = dependencies or build_dependencies()
     initialize_runtime(deps)
     app = FastMCP("crm-semantic-search")
+    log_event(logger, logging.INFO, "server.app.created", "MCP application created.", server_name="crm-semantic-search")
     return register_tools(app, deps)
+
+
+def execute_tool(
+    tool_name: str,
+    action: Callable[[], ToolResult],
+    **context: object,
+) -> ToolResult | ErrorResponse:
+    """Execute a tool workflow with structured success and failure logs."""
+    started_at = time.perf_counter()
+    log_event(logger, logging.INFO, "tool.invocation.started", f"{tool_name} started.", tool_name=tool_name, **context)
+    try:
+        result = action()
+    except AppError as exc:
+        duration_ms = round((time.perf_counter() - started_at) * 1000, 3)
+        log_event(
+            logger,
+            logging.ERROR,
+            "tool.invocation.failed",
+            f"{tool_name} failed.",
+            tool_name=tool_name,
+            error_code=exc.code,
+            duration_ms=duration_ms,
+            **context,
+        )
+        return build_error_response(exc)
+
+    duration_ms = round((time.perf_counter() - started_at) * 1000, 3)
+    success_context: dict[str, object] = {"tool_name": tool_name, "duration_ms": duration_ms, **context}
+    if isinstance(result, CreateUserResponse):
+        success_context["created_user_id"] = result.id
+    elif isinstance(result, UserRecord):
+        success_context["resolved_user_id"] = result.id
+    elif isinstance(result, list):
+        success_context["result_count"] = len(result)
+
+    log_event(
+        logger,
+        logging.INFO,
+        "tool.invocation.completed",
+        f"{tool_name} completed.",
+        **success_context,
+    )
+    return result
 
 
 def create_user_workflow(
@@ -165,6 +249,7 @@ def build_error_response(error: AppError) -> ErrorResponse:
 
 def run() -> None:
     """Start the MCP server runtime."""
+    log_event(logger, logging.INFO, "server.run.started", "Starting MCP server runtime.", transport="stdio")
     create_app().run()
 
 

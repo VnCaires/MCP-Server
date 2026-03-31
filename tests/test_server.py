@@ -1,5 +1,4 @@
 """Automated tests for the main MCP server flows."""
-
 from pathlib import Path
 import shutil
 import unittest
@@ -8,7 +7,7 @@ from uuid import uuid4
 from project.database import Database
 from project.embeddings import EmbeddingService
 from project.models import AppDependencies, CreateUserResponse, ErrorResponse, SearchUserMatch, UserRecord
-from project.server import create_app
+from project.server import create_app, logger
 from project.vector_store import VectorStore
 
 
@@ -92,17 +91,17 @@ class MCPServerFlowTests(unittest.IsolatedAsyncioTestCase):
         create_user.fn(
             name="Carla",
             email="carla@test.com",
-            description="cliente premium com interesse em automacao financeira",
+            description="responsavel por operacoes financeiras e automacao de cobranca",
         )
         create_user.fn(
             name="Diego",
             email="diego@test.com",
-            description="cliente focado em suporte industrial",
+            description="coordena suporte tecnico industrial e atendimento de campo",
         )
         create_user.fn(
             name="Eva",
             email="eva@test.com",
-            description="cliente premium com automacao de processos comerciais",
+            description="lidera automacao de processos comerciais e qualificacao de leads",
         )
 
         results = search_users.fn(query="automacao financeira premium", top_k=3)
@@ -113,6 +112,27 @@ class MCPServerFlowTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(results[0].name, "Carla")
         self.assertGreaterEqual(results[0].score, results[1].score)
 
+    async def test_search_users_tool_downranks_generic_cliente_term(self) -> None:
+        create_user = await self.app.get_tool("create_user")
+        search_users = await self.app.get_tool("search_users")
+
+        create_user.fn(
+            name="Ana",
+            email="ana@test.com",
+            description="especialista em analise de dados financeiros e indicadores de desempenho",
+        )
+        create_user.fn(
+            name="Bruno",
+            email="bruno@test.com",
+            description="cliente com foco em operacao interna e rotinas administrativas",
+        )
+
+        results = search_users.fn(query="Cliente com capacidade analítica", top_k=2)
+
+        self.assertIsInstance(results, list)
+        self.assertEqual(results[0].name, "Ana")
+        self.assertGreater(results[0].score, results[1].score)
+
     async def test_search_users_tool_validates_top_k(self) -> None:
         search_users = await self.app.get_tool("search_users")
 
@@ -120,6 +140,42 @@ class MCPServerFlowTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertIsInstance(result, ErrorResponse)
         self.assertEqual(result.code, "validation_error")
+
+    async def test_create_user_tool_emits_structured_success_logs(self) -> None:
+        create_user = await self.app.get_tool("create_user")
+
+        with self.assertLogs(logger, level="INFO") as captured:
+            result = create_user.fn(
+                name="Lucia",
+                email="lucia@test.com",
+                description="lider de operacoes financeiras com foco em automacao",
+            )
+
+        self.assertIsInstance(result, CreateUserResponse)
+        completed_log = next(
+            record
+            for record in captured.records
+            if getattr(record, "event", "") == "tool.invocation.completed"
+        )
+        self.assertEqual(completed_log.context["tool_name"], "create_user")
+        self.assertEqual(completed_log.context["created_user_id"], result.id)
+        self.assertEqual(completed_log.context["email_domain"], "test.com")
+
+    async def test_get_user_tool_emits_structured_failure_logs(self) -> None:
+        get_user = await self.app.get_tool("get_user")
+
+        with self.assertLogs(logger, level="INFO") as captured:
+            result = get_user.fn(user_id=404)
+
+        self.assertIsInstance(result, ErrorResponse)
+        failed_log = next(
+            record
+            for record in captured.records
+            if getattr(record, "event", "") == "tool.invocation.failed"
+        )
+        self.assertEqual(failed_log.context["tool_name"], "get_user")
+        self.assertEqual(failed_log.context["user_id"], 404)
+        self.assertEqual(failed_log.context["error_code"], "not_found")
 
 
 if __name__ == "__main__":
