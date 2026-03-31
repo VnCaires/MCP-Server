@@ -7,7 +7,6 @@ from pydantic import BaseModel, EmailStr, Field
 
 
 class UserCreate(BaseModel):
-    """Payload used to create a user."""
 
     name: str = Field(..., min_length=1)
     email: EmailStr
@@ -15,7 +14,6 @@ class UserCreate(BaseModel):
 
 
 class UserRecord(UserCreate):
-    """User representation persisted in storage."""
 
     id: int
 
@@ -31,39 +29,33 @@ class UserRecord(UserCreate):
 
 
 class SearchUsersRequest(BaseModel):
-    """Input contract for the `search_users` MCP tool."""
 
     query: str = Field(..., min_length=1)
     top_k: int = Field(default=5, ge=1)
 
 
 class SearchUserMatch(UserRecord):
-    """Single semantic search result item."""
 
     score: float
 
 
 class VectorIndexEntry(BaseModel):
-    """Metadata that links a FAISS vector position to a persisted user."""
 
     vector_id: int = Field(..., ge=0)
     user_id: int = Field(..., ge=1)
 
 
 class GetUserRequest(BaseModel):
-    """Input contract for the `get_user` MCP tool."""
 
     user_id: int = Field(..., ge=1)
 
 
 class CreateUserResponse(BaseModel):
-    """Output contract for the `create_user` MCP tool."""
 
     id: int
 
 
 class ErrorResponse(BaseModel):
-    """Shared error response shape for MCP tool failures."""
 
     code: Literal["not_found", "validation_error", "storage_error", "embedding_error"]
     message: str
@@ -71,7 +63,6 @@ class ErrorResponse(BaseModel):
 
 @dataclass(frozen=True)
 class AppDependencies:
-    """Application dependency container used by the MCP server."""
 
     database: object
     embedding_service: object

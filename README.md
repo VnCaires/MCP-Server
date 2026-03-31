@@ -27,6 +27,7 @@ project/
 |-- server.py
 |-- database.py
 |-- embeddings.py
+|-- logging_utils.py
 |-- vector_store.py
 |-- models.py
 |-- errors.py
@@ -54,6 +55,12 @@ python -m pip install -r requirements.txt
 ```
 
 ## Executar o servidor MCP
+
+```powershell
+.\.venv\Scripts\python.exe -m project.server
+```
+
+Tambem funciona com:
 
 ```powershell
 .\.venv\Scripts\python.exe project\server.py
@@ -196,6 +203,8 @@ O servidor agora emite logs estruturados em JSON para os eventos principais:
 - bootstrap e inicializacao do runtime
 - inicio e fim de cada tool MCP
 - falhas com `error_code` e `duration_ms`
+
+Os logs sao emitidos em `stderr`, enquanto o transporte MCP continua em `stdio`.
 
 Exemplo de log:
 

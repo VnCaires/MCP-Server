@@ -20,7 +20,6 @@ CREATE TABLE IF NOT EXISTS users (
 
 
 class Database:
-    """Thin wrapper around the project SQLite database."""
 
     def __init__(self, database_path: str | None = None) -> None:
         self.database_path = database_path or str(settings.database_path)
@@ -32,13 +31,11 @@ class Database:
         return connection
 
     def initialize(self) -> None:
-        """Create the database schema required by the application."""
         with self.session() as connection:
             connection.execute(USER_TABLE_SCHEMA)
             connection.commit()
 
     def create_user(self, payload: UserCreate) -> UserRecord:
-        """Persist a user and return the stored record."""
         try:
             with self.session() as connection:
                 cursor = connection.execute(
@@ -61,7 +58,6 @@ class Database:
         return user
 
     def get_user_by_id(self, user_id: int) -> UserRecord | None:
-        """Return a stored user by ID or `None` if it does not exist."""
         with self.session() as connection:
             row = connection.execute(
                 """
@@ -78,7 +74,6 @@ class Database:
         return UserRecord.from_row(dict(row))
 
     def get_users_by_ids(self, user_ids: list[int]) -> list[UserRecord]:
-        """Return stored users preserving the input order of user IDs."""
         if not user_ids:
             return []
 
@@ -97,7 +92,6 @@ class Database:
         return [row_map[user_id] for user_id in user_ids if user_id in row_map]
 
     def list_users(self) -> list[UserRecord]:
-        """Return all stored users ordered by ID."""
         with self.session() as connection:
             rows = connection.execute(
                 """
@@ -110,7 +104,6 @@ class Database:
         return [UserRecord.from_row(dict(row)) for row in rows]
 
     def hydrate_search_matches(self, user_ids: list[int], scores: list[float]) -> list[SearchUserMatch]:
-        """Combine stored users and vector scores into search result payloads."""
         users = self.get_users_by_ids(user_ids)
         user_map = {user.id: user for user in users}
 
@@ -133,7 +126,6 @@ class Database:
 
     @contextmanager
     def session(self) -> Iterator[sqlite3.Connection]:
-        """Yield a connection and ensure it is always closed."""
         connection = self.connect()
         try:
             yield connection
@@ -142,5 +134,4 @@ class Database:
 
 
 def get_database() -> Database:
-    """Build the default database dependency for the application."""
     return Database()
