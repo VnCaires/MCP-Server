@@ -96,6 +96,9 @@ Observacao:
 docker run --rm mcp-server python -m unittest discover -s tests -v
 ```
 
+### No GitHub
+- O workflow `CI` em `.github/workflows/ci.yml` executa automaticamente `python -m unittest discover -s tests -v` em pushes e pull requests para `main`.
+
 ## Exemplos de uso das tools MCP
 
 A seguir estão exemplos simples de como interagir com as principais ferramentas do servidor MCP.
