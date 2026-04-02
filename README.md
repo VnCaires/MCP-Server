@@ -197,6 +197,13 @@ As tools retornam erros consistentes no formato:
 }
 ```
 
+Validacoes adicionais de email aplicadas em `create_user`:
+- espacos em volta do email sao removidos antes da validacao
+- o email e normalizado para minusculas antes de persistir
+- aliases com `+` no local-part sao rejeitados
+
+Na pratica, isso evita duplicidades por caixa alta e mantem uma politica simples para identificacao unica de usuarios.
+
 ## Observabilidade
 
 O servidor agora emite logs estruturados em JSON para os eventos principais:

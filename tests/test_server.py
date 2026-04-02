@@ -61,6 +61,50 @@ class MCPServerFlowTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsInstance(duplicate, ErrorResponse)
         self.assertEqual(duplicate.code, "validation_error")
 
+    async def test_create_user_tool_normalizes_email_before_persisting(self) -> None:
+        create_user = await self.app.get_tool("create_user")
+
+        result = create_user.fn(
+            name="Ana",
+            email="  ANA@TEST.COM  ",
+            description="cliente premium com automacao financeira",
+        )
+
+        self.assertIsInstance(result, CreateUserResponse)
+        stored_user = self.dependencies.database.get_user_by_id(result.id)
+        self.assertIsNotNone(stored_user)
+        self.assertEqual(stored_user.email, "ana@test.com")
+
+    async def test_create_user_tool_rejects_plus_alias_emails(self) -> None:
+        create_user = await self.app.get_tool("create_user")
+
+        result = create_user.fn(
+            name="Ana",
+            email="ana+crm@test.com",
+            description="cliente premium com automacao financeira",
+        )
+
+        self.assertIsInstance(result, ErrorResponse)
+        self.assertEqual(result.code, "validation_error")
+        self.assertEqual(result.message, "Value error, Plus aliases are not allowed in email addresses.")
+
+    async def test_create_user_tool_treats_case_variants_as_duplicate_email(self) -> None:
+        create_user = await self.app.get_tool("create_user")
+        create_user.fn(
+            name="Ana",
+            email="Ana@Test.com",
+            description="cliente premium com automacao financeira",
+        )
+
+        duplicate = create_user.fn(
+            name="Ana 2",
+            email="ana@test.com",
+            description="cliente duplicado",
+        )
+
+        self.assertIsInstance(duplicate, ErrorResponse)
+        self.assertEqual(duplicate.code, "validation_error")
+
     async def test_get_user_tool_returns_existing_user(self) -> None:
         create_user = await self.app.get_tool("create_user")
         get_user = await self.app.get_tool("get_user")

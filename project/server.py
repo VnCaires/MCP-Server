@@ -83,7 +83,7 @@ def register_tools(app: FastMCP, dependencies: AppDependencies) -> FastMCP:
         return execute_tool(
             "create_user",
             lambda: create_user_workflow(name=name, email=email, description=description, dependencies=dependencies),
-            email_domain=email.split("@")[-1] if "@" in email else "invalid",
+            email_domain=email.strip().lower().split("@")[-1] if "@" in email else "invalid",
             name_length=len(name),
             description_length=len(description),
         )

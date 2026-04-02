@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import Literal
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 class UserCreate(BaseModel):
@@ -11,6 +11,21 @@ class UserCreate(BaseModel):
     name: str = Field(..., min_length=1)
     email: EmailStr
     description: str = Field(..., min_length=1)
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def normalize_email(cls, value: object) -> object:
+        if isinstance(value, str):
+            return value.strip().lower()
+        return value
+
+    @field_validator("email")
+    @classmethod
+    def validate_email_policy(cls, value: EmailStr) -> EmailStr:
+        local_part = str(value).split("@", 1)[0]
+        if "+" in local_part:
+            raise ValueError("Plus aliases are not allowed in email addresses.")
+        return value
 
 
 class UserRecord(UserCreate):
