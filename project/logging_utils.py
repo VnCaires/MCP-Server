@@ -1,5 +1,3 @@
-"""Structured logging helpers for the MCP server."""
-
 from __future__ import annotations
 
 import json
@@ -9,7 +7,6 @@ from typing import Any
 
 
 class JsonFormatter(logging.Formatter):
-    """Render log records as one-line JSON payloads."""
 
     def format(self, record: logging.LogRecord) -> str:
         payload: dict[str, Any] = {
@@ -25,7 +22,6 @@ class JsonFormatter(logging.Formatter):
 
 
 def configure_logging(level: int = logging.INFO) -> logging.Logger:
-    """Configure the application logger once and return it."""
     logger = logging.getLogger("project.server")
     logger.setLevel(level)
     logger.propagate = False
@@ -46,5 +42,4 @@ def log_event(
     message: str,
     **context: Any,
 ) -> None:
-    """Emit one structured application log entry."""
     logger.log(level, message, extra={"event": event, "context": context})
